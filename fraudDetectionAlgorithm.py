@@ -159,11 +159,13 @@ def Computation(section, pmf, cdf, responses, answers):
             #print(student2_sequence)
             
             #result_algo1 = Staging(student1_sequence, student2_sequence, pmf, cdf, answers)
-            x = method1_staging(student1_sequence, student2_sequence, answers, pmf, cdf)
-        break
+            r1, r2, r3, r4 = Staging(student1_sequence, student2_sequence, answers, pmf, cdf)
+            result.append((student1, student2, r1, r2, r3, r4))
+            
+    return result 
         
         
-def method1_staging(response1, response2, correctAnswers, pmf, cdf):
+def Staging(response1, response2, correctAnswers, pmf, cdf):
     
     CPCA = []                  #Current paper's correct answers, saves True boolean value for right option
     PMF  = []                  #Current paper's pmf
@@ -221,11 +223,12 @@ def method1_staging(response1, response2, correctAnswers, pmf, cdf):
     
     #print("\nstaging1", staging1[:10])
     #print("\nstaging2", staging2[:10])
-    #algo1 = Algorithm1(np.array(PMF), np.array(PM), np.array(PPM))
-    #algo2 = Algorithm2(np.array(PMF), np.array(PM), np.array(PPM))
-    #algo3 = Algorithm3(np.array(inversePMF), np.array(PPM), np.array(staging1), np.array(staging2))
+    algo1 = Algorithm1(np.array(PMF), np.array(PM), np.array(PPM))
+    algo2 = Algorithm2(np.array(PMF), np.array(PM), np.array(PPM))
+    algo3 = Algorithm3(np.array(inversePMF), np.array(PPM), np.array(staging1), np.array(staging2))
     algo4 = Algorithm4(np.array(inversePMF), np.array(staging1))
     
+    return algo1, algo2, algo3, algo4
     
 #Final Block which runs staging and Algorithms by grouping sections across all schools and regions
 RESULTS = {}
@@ -263,8 +266,5 @@ for district_name, item in DISTRICTS:
                         
                         result = Computation(section, pmf, cdf, allResponsesWithStudentId, correctAnswers)
                         RESULTS[name] = result
-                    break
-                break
-            break
-        break
-    break
+
+#This is the end of the code
