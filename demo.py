@@ -70,3 +70,75 @@ xls = pd.ExcelFile('Basic quiz week 4.xlsx')
 df1 = pd.read_excel(xls, 'Basic Quiz Week4 Answer Strings')
 df2 = pd.read_excel(xls, 'Answers')
 correctAnswers, allResponsesWithStudentId, probabilityDistribution, pmf, cdf = fileReadingandProcessing(df1, df2)
+
+
+
+#Different Algorithms
+
+from scipy.stats import chi2_contingency
+def Algorithm1(pmf, PM, PPM):
+    
+    contingency_matrix = np.zeros((2, 3))
+    
+    p = pmf[:, :4]
+    contingency_matrix[0, 0] = p[p<0.2].sum()
+    contingency_matrix[0, 1] = p[np.where((p>0.2) & (p<0.4))].sum()
+    contingency_matrix[0, 2] = p[p>0.4].sum() + pmf[:, 4].sum()
+    
+    contingency_matrix[1, 0] = sum([PM[i[0], i[1]] for i in np.argwhere(PPM < 0.2).tolist()])
+    contingency_matrix[1, 1] = sum([PM[i[0], i[1]] for i in np.argwhere((PPM > 0.2) & (PPM < 0.4)).tolist()])
+    contingency_matrix[1, 2] = sum([PM[i[0], i[1]] for i in np.argwhere(PPM > 0.4).tolist()])
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 1",chi2, p, dof, ex)
+    return p
+    
+def Algorithm2(pmf, PM, PPM):
+    
+    contingency_matrix = np.zeros((2, 2))
+    print(pmf[pmf<0.2])
+    
+    contingency_matrix[0, 0] = pmf[:, :4].sum()
+    contingency_matrix[0, 1] = pmf[:, 4].sum()
+    
+    contingency_matrix[1, 0] = PM[:, :4].sum()
+    contingency_matrix[1, 1] = PM[:, 4].sum()
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 2",chi2, p, dof, ex)
+    return p
+    
+def Algorithm3(IPMF, PPM, S1, S2):
+    
+    contingency_matrix = np.zeros((2, 3))
+    
+    p = IPMF[:, :4]
+    contingency_matrix[0, 0] = p[p<0.2].sum()
+    contingency_matrix[0, 1] = p[np.where((p>0.2) & (p<0.4))].sum()
+    contingency_matrix[0, 2] = p[p>0.4].sum() + IPMF[:, 4].sum()
+    
+    contingency_matrix[1, 0] = sum([S1[i[0], i[1]] for i in np.argwhere(S2 < 0.2).tolist()])
+    contingency_matrix[1, 1] = sum([S1[i[0], i[1]] for i in np.argwhere((S2 > 0.2)).tolist()]+[S1[i[0], i[1]] for i in np.argwhere((PPM < 0.4)).tolist()])
+    contingency_matrix[1, 2] = sum([S1[i[0], i[1]] for i in np.argwhere(S2 > 0.4).tolist()])
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 3",chi2, p, dof, ex)
+    return p
+
+def Algorithm4(IPMF, S1):
+    
+    contingency_matrix = np.zeros((2, 2))
+    
+    contingency_matrix[0, 0] = IPMF[:, :4].sum()
+    contingency_matrix[0, 1] = IPMF[:, 4].sum()
+    
+    contingency_matrix[1, 0] = S1[:, :4].sum()
+    contingency_matrix[1, 1] = S1[:, 4].sum()
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 4",chi2, p, dof, ex)
+    return p
