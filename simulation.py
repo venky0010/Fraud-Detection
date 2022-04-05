@@ -162,3 +162,200 @@ def Simulation(section, CA):
     return section_name, studentResponses
   
 section_sim, studentResponseswithID = Simulation(list(section_proportion.keys()), CA)
+
+#Running Algorithms on simulated data
+
+def Computation(section, pmf, cdf, responses, answers):
+    
+    print(section)
+    for i in section.index[:-1]:
+        for j in section.index[1:]:
+            
+            print(i, j)
+            student1 = section.loc[i, 'emis_username']
+            student2 = section.loc[j, 'emis_username']
+            print(student1, student2)
+            student1_sequence = responses[student1]
+            student2_sequence = responses[student2]
+            #print(student1_sequence)
+            #print(student2_sequence)
+            
+            #result_algo1 = Staging(student1_sequence, student2_sequence, pmf, cdf, answers)
+            x = method1_staging(student1_sequence, student2_sequence, answers, pmf, cdf)
+        break
+        
+ def Computation(section, pmf, cdf, responses, answers):
+    
+    result = []
+    for i in section[:-1]:
+        for j in section[1:]:
+            
+            print(i, j)
+            student1 = i
+            student2 = j
+            print(student1, student2)
+            student1_sequence = responses[student1]
+            student2_sequence = responses[student2]
+            #print(student1_sequence)
+            #print(student2_sequence)
+            
+            #result_algo1 = Staging(student1_sequence, student2_sequence, pmf, cdf, answers)
+            r1, r2, r3, r4 = Staging(student1_sequence, student2_sequence, answers, pmf, cdf)
+            result.append((student1, student2, r1, r2, r3, r4))
+    return result 
+        
+def Staging(response1, response2, correctAnswers, pmf, cdf):
+    
+    CPCA = []                  #Current paper's correct answers, saves True boolean value for right option
+    PMF  = []                  #Current paper's pmf
+    CPCA_inverse = []          #saves True boolean values for wrong options and False for correct option
+    PM   = []                  #Pair's match on answers, saves True boolean value for matching option **
+    PPM  = []                  #Pair's matching PMF **
+    inversePMF = []            #PMF for wrong answers
+    
+    bits = []
+    
+    for ques, ans1 in response1.items():
+        
+        if ques in response2:                          # if question match -> solve, else: skip
+            
+            x = [0]*5
+            x[correctAnswers[ques]-1] = 1              #if correct option in 2, then appends list [0, 1, 0, 0, 0]
+            CPCA.append(x)
+            CPCA_inverse.append([1-i for i in x])
+            PMF.append(list(pmf[ques].values())[1:])
+            
+            if ans1 == response2[ques]:                #check if both have same answers
+                
+                y = [0]*5
+                y[ans1-1] = 1
+                PM.append(y)                           # this y might not be same as x, depends if selected option is same as correct option
+                
+                if ans1 == correctAnswers[ques]:
+                    
+                    bits.append(0)
+                
+                else:
+                    
+                    bits.append(1)
+                
+            else:
+                
+                PM.append([0, 0, 0, 0, 1])
+                bits.append(1)
+                
+        
+                
+    PPM = [[PMF[j][i]*PM[j][i] for i in range(len(PM[j]))] for j in range(len(PMF))]
+    inversePMF = [[PMF[j][i]*(1-CPCA[j][i]) for i in range(len(CPCA[j]))] for j in range(len(PMF))]
+    
+    #print(len(PM), len(CPCA), len(CPCA_inverse), len(PPM), len(inversePMF), len(bits))
+    #print("\nPairs Match", PM[:5])
+    #print("\ncorrectAnswers", CPCA[:5])
+    #print("Bits", bits)
+    #print("\nWrong Answers", CPCA_inverse[:5])
+    #print("\nmatching probability", PPM[:5])
+    #print("\nwrong answer probability", inversePMF[:5])
+    
+    staging1 = [[bits[i]*PM[i][j] for j in range(len(PM[i]))] for i in range(len(PM))]                 #Stores bits for ignored answers
+    staging2 = [[PMF[j][i]*staging1[j][i] for i in range(len(staging1[j]))] for j in range(len(PMF))]  #PMF values for ignored answers
+    
+    #print("\nstaging1", staging1[:10])
+    #print("\nstaging2", staging2[:10])
+    algo1 = Algorithm1(np.array(PMF), np.array(PM), np.array(PPM))
+    algo2 = Algorithm2(np.array(PMF), np.array(PM), np.array(PPM))
+    algo3 = Algorithm3(np.array(inversePMF), np.array(PPM), np.array(staging1), np.array(staging2))
+    algo4 = Algorithm4(np.array(inversePMF), np.array(staging1))
+    
+    return algo1, algo2, algo3, algo4
+
+from scipy.stats import chi2_contingency
+def Algorithm1(pmf, PM, PPM):
+    
+    contingency_matrix = np.zeros((2, 3))
+    
+    p = pmf[:, :4]
+    contingency_matrix[0, 0] = p[p<0.2].sum()
+    contingency_matrix[0, 1] = p[np.where((p>0.2) & (p<0.4))].sum()
+    contingency_matrix[0, 2] = p[p>0.4].sum() + pmf[:, 4].sum()
+    
+    contingency_matrix[1, 0] = sum([PM[i[0], i[1]] for i in np.argwhere(PPM < 0.2).tolist()])
+    contingency_matrix[1, 1] = sum([PM[i[0], i[1]] for i in np.argwhere((PPM > 0.2) & (PPM < 0.4)).tolist()])
+    contingency_matrix[1, 2] = sum([PM[i[0], i[1]] for i in np.argwhere(PPM > 0.4).tolist()])
+    
+    if sum(contingency_matrix[0])==0 or sum(contingency_matrix[1])==0 or sum(contingency_matrix[:, 0])==0 or sum(contingency_matrix[:, 1])==0 or sum(contingency_matrix[:, 2])==0:
+        return 2, 2, 2, 2
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 1",chi2, p, dof, ex)
+    return p
+    
+def Algorithm2(pmf, PM, PPM):
+    
+    contingency_matrix = np.zeros((2, 2))
+    
+    contingency_matrix[0, 0] = pmf[:, :4].sum()
+    contingency_matrix[0, 1] = pmf[:, 4].sum()
+    
+    contingency_matrix[1, 0] = PM[:, :4].sum()
+    contingency_matrix[1, 1] = PM[:, 4].sum()
+    
+    if sum(contingency_matrix[0])==0 or sum(contingency_matrix[1])==0 or sum(contingency_matrix[:, 0])==0 or sum(contingency_matrix[:, 1])==0:
+        return 2, 2, 2, 2
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 2",chi2, p, dof, ex)
+    return p
+    
+def Algorithm3(IPMF, PPM, S1, S2):
+    
+    contingency_matrix = np.zeros((2, 3))
+    
+    p = IPMF[:, :4]
+    contingency_matrix[0, 0] = p[p<0.2].sum()
+    contingency_matrix[0, 1] = p[np.where((p>0.2) & (p<0.4))].sum()
+    contingency_matrix[0, 2] = p[p>0.4].sum() + IPMF[:, 4].sum()
+    
+    contingency_matrix[1, 0] = sum([S1[i[0], i[1]] for i in np.argwhere(S2 < 0.2).tolist()])
+    contingency_matrix[1, 1] = sum([S1[i[0], i[1]] for i in np.argwhere((S2 > 0.2)).tolist()]+[S1[i[0], i[1]] for i in np.argwhere((PPM < 0.4)).tolist()])
+    contingency_matrix[1, 2] = sum([S1[i[0], i[1]] for i in np.argwhere(S2 > 0.4).tolist()])
+    
+    if sum(contingency_matrix[0])==0 or sum(contingency_matrix[1])==0 or sum(contingency_matrix[:, 0])==0 or sum(contingency_matrix[:, 1])==0 or sum(contingency_matrix[:, 2])==0:
+        return 2, 2, 2, 2
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 3",chi2, p, dof, ex)
+    return p
+
+def Algorithm4(IPMF, S1):
+    
+    contingency_matrix = np.zeros((2, 2))
+    
+    contingency_matrix[0, 0] = IPMF[:, :4].sum()
+    contingency_matrix[0, 1] = IPMF[:, 4].sum()
+    
+    contingency_matrix[1, 0] = S1[:, :4].sum()
+    contingency_matrix[1, 1] = S1[:, 4].sum()
+    
+    print(contingency_matrix)
+    
+    if sum(contingency_matrix[0])==0 or sum(contingency_matrix[1])==0 or sum(contingency_matrix[:, 0])==0 or sum(contingency_matrix[:, 1])==0:
+        return 2, 2, 2, 2
+    
+    chi2, p, dof, ex = chi2_contingency(contingency_matrix, correction=False)
+    
+    #print("Algorithm 4",chi2, p, dof, ex)
+    return p
+
+RESULTS = {}
+for section_name, students in section_sim.items():
+                    
+    print(section_name)
+    name = section_name
+                    
+    if name not in RESULTS:
+        result = Computation(students, PMF, CDF, studentResponseswithID, CA)
+        RESULTS[name] = result
