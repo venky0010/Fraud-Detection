@@ -358,4 +358,73 @@ for section_name, students in section_sim.items():
                     
     if name not in RESULTS:
         result = Computation(students, PMF, CDF, studentResponseswithID, CA)
-        RESULTS[name] = result
+        RESULTS[name] = result1
+        
+        
+        
+#New code for Fraud CLassification
+
+def find_pairs(n):
+
+    x = int(0.05*n)+1
+    copied_from = list(np.random.randint(0, len(students), x))
+    
+    return {i: i+1 for i in copied_from}
+
+def copy_response(s1, s2, pc):
+    
+    questions_copied = list(np.random.randint(1, 51, int(50*pc)))
+    
+    for q, a in s1.items():
+        if q in questions_copied:
+            s2[q] = a
+        else:
+            continue
+    return s2
+
+def Computation_Classification(section, pmf, cdf, responses, answers, CM):
+    
+    result = []
+    
+    sourse_copy_pairs = find_pairs(len(section))
+    
+    for i in section[:-1]:
+        for j in section[1:]:
+            
+            print(i, j)
+            student1 = i
+            student2 = j
+            print(student1, student2)
+            student1_sequence = responses[student1]
+            student2_sequence = responses[student2]
+            
+            if student1 in source_copy_pairs.keys() and student2 in source_copy_pairs.values():
+                student2_sequence = copy_response(student1_sequence, student2_sequence, 0.8)
+            
+            r1, r2, r3, r4 = Staging(student1_sequence, student2_sequence, answers, pmf, cdf)
+            
+            if student1 in source_copy_pairs.keys() and student2 in source_copy_pairs.values():
+                
+                if r1<0.05:
+                    CM['TP']+=1
+                else:
+                    CM['FP']+=1
+            
+            else:
+                if r1<0.05:
+                    CM['FN']+=1
+                else:
+                    CM['TN']+=1
+    return CM
+CM = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+results = {}
+for section_name in LessSection:
+                    
+    print(section_name)
+    name = section_name
+    
+    students = section_sim[name]
+                    
+    if name not in RESULTS:
+        CM = Computation_Classification(section, pmf, cdf, responses, answers, CM)
+        RESULTS[name] = CM
