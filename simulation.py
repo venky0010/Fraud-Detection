@@ -167,25 +167,6 @@ section_sim, studentResponseswithID = Simulation(list(section_proportion.keys())
 
 def Computation(section, pmf, cdf, responses, answers):
     
-    print(section)
-    for i in section.index[:-1]:
-        for j in section.index[1:]:
-            
-            print(i, j)
-            student1 = section.loc[i, 'emis_username']
-            student2 = section.loc[j, 'emis_username']
-            print(student1, student2)
-            student1_sequence = responses[student1]
-            student2_sequence = responses[student2]
-            #print(student1_sequence)
-            #print(student2_sequence)
-            
-            #result_algo1 = Staging(student1_sequence, student2_sequence, pmf, cdf, answers)
-            x = method1_staging(student1_sequence, student2_sequence, answers, pmf, cdf)
-        break
-        
- def Computation(section, pmf, cdf, responses, answers):
-    
     result = []
     for i in section[:-1]:
         for j in section[1:]:
@@ -196,6 +177,7 @@ def Computation(section, pmf, cdf, responses, answers):
             print(student1, student2)
             student1_sequence = responses[student1]
             student2_sequence = responses[student2]
+            
             #print(student1_sequence)
             #print(student2_sequence)
             
@@ -203,13 +185,64 @@ def Computation(section, pmf, cdf, responses, answers):
             r1, r2, r3, r4 = Staging(student1_sequence, student2_sequence, answers, pmf, cdf)
             result.append((student1, student2, r1, r2, r3, r4))
     return result 
-        
+
+def find_pairs(n):
+
+    x = int(0.05*n)+1
+    copied_from = list(np.random.randint(0, len(students), x))
+    
+    return {i: i+1 for i in copied_from}
+
+def copy_response(s1, s2, pc):
+    
+    questions_copied = list(np.random.randint(1, 51, int(50*pc)))
+    
+    for q, a in s1.items():
+        if q in questions_copied:
+            s2[q] = a
+        else:
+            continue
+    return s2
+
+
+def Computation_Classification(section, pmf, cdf, responses, answers, CM1, CM2, CM3, CM4):
+    
+    result = []
+    
+    CM_Local1, CM_Local2 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}, {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+    CM_Local3, CM_Local4 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}, {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+    
+    source_copy_pairs = find_pairs(len(section))
+    
+    print(section)
+    for i in range(len(section)-1):
+        for j in range(i+1, len(section)):
+            
+            print(i, j)
+            student1 = section[i]
+            student2 = section[j]
+            print(student1, student2)
+            student1_sequence = responses[student1]
+            student2_sequence = responses[student2]
+            
+            if i in source_copy_pairs.keys() and j == i+1:
+                student2_sequence = copy_response(student1_sequence, student2_sequence, 0.8)
+            
+            r1, r2, r3, r4 = Staging(student1_sequence, student2_sequence, answers, pmf, cdf)
+            
+            CM1 = AlgoRes(CM1, r1, source_copy_pairs, i, j)
+            CM2 = AlgoRes(CM2, r2, source_copy_pairs, i, j)
+            CM3 = AlgoRes(CM3, r3, source_copy_pairs, i, j)
+            CM4 = AlgoRes(CM4, r4, source_copy_pairs, i, j)
+           
+    return CM1, CM2, CM3, CM4
+
 def Staging(response1, response2, correctAnswers, pmf, cdf):
     
     CPCA = []                  #Current paper's correct answers, saves True boolean value for right option
     PMF  = []                  #Current paper's pmf
     CPCA_inverse = []          #saves True boolean values for wrong options and False for correct option
-    PM   = []                  #Pair's match on answers, saves True boolean value for matching option **
+    PM   = []                  #Pair's match on answers, saves True boolean value for matchind option **
     PPM  = []                  #Pair's matching PMF **
     inversePMF = []            #PMF for wrong answers
     
@@ -238,14 +271,13 @@ def Staging(response1, response2, correctAnswers, pmf, cdf):
                 else:
                     
                     bits.append(1)
-                
+                    
             else:
                 
                 PM.append([0, 0, 0, 0, 1])
                 bits.append(1)
                 
-        
-                
+      
     PPM = [[PMF[j][i]*PM[j][i] for i in range(len(PM[j]))] for j in range(len(PMF))]
     inversePMF = [[PMF[j][i]*(1-CPCA[j][i]) for i in range(len(CPCA[j]))] for j in range(len(PMF))]
     
@@ -268,6 +300,7 @@ def Staging(response1, response2, correctAnswers, pmf, cdf):
     algo4 = Algorithm4(np.array(inversePMF), np.array(staging1))
     
     return algo1, algo2, algo3, algo4
+
 
 from scipy.stats import chi2_contingency
 def Algorithm1(pmf, PM, PPM):
@@ -416,8 +449,13 @@ def Computation_Classification(section, pmf, cdf, responses, answers, CM):
                 else:
                     CM['TN']+=1
     return CM
-CM = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
-results = {}
+
+
+CM1 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+CM2 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+CM3 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+CM4 = {'TP':0, 'FP':0, 'FN':0, 'TN':0}
+RESULTS = {}
 for section_name in LessSection:
                     
     print(section_name)
@@ -426,5 +464,5 @@ for section_name in LessSection:
     students = section_sim[name]
                     
     if name not in RESULTS:
-        CM = Computation_Classification(section, pmf, cdf, responses, answers, CM)
-        RESULTS[name] = CM
+        CM1, CM2, CM3, CM4 = Computation_Classification(students, PMF, CDF, studentResponseswithID, CA, CM1, CM2, CM3, CM4)
+        RESULTS[name] = [CM1, CM2, CM3, CM4]
